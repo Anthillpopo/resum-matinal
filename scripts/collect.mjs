@@ -99,16 +99,20 @@ async function get(url) {
 }
 
 export async function build(now = Date.now()) {
-  const status = [];
+  const status = [], log = [];
   const lists = await Promise.all(SOURCES.map(async s => {
     const out = []; let ok = false;
     const one = async f => {
       const [url, fixed] = Array.isArray(f) ? f : [f, null];
       try {
-        const items = parseFeed(await get(url));
+        const xml = await get(url);
+        const items = parseFeed(xml);
+        const newest = items.reduce((m, a) => Math.max(m, a.ts || 0), 0);
+        log.push(`  ${s.name} | ${url} | ${xml.length} octets | ${items.length} éléments | plus récent : ${newest ? new Date(newest).toISOString() : "sans date"}${items.length ? "" : " | début : " + xml.slice(0, 160).replace(/\s+/g, " ")}`);
         for (const a of items) { const t = fixed || themeOf(a); out.push({ ...a, source: s.name, theme: t === "societe" && s.theme ? s.theme : t, video: (s.name === "Brut" || s.name === "Arte") && /\/videos?\//.test(a.url) }); }
-        ok = true; return items.length > 0;
-      } catch { return false; }
+        if (items.length) ok = true;
+        return items.length > 0;
+      } catch (e) { log.push(`  ${s.name} | ${url} | échec : ${e.message}`); return false; }
     };
     if (s.any) { for (const f of s.feeds) if (await one(f)) break; }
     else await Promise.all(s.feeds.map(one));
@@ -126,6 +130,7 @@ export async function build(now = Date.now()) {
   const odd = a => { let p = ""; try { p = new URL(a.url).pathname; } catch {} return /insolite/i.test(p) || a.cats.some(c => /insolite/i.test(c)); };
   const funny = all.filter(odd).sort((x, y) => (y.ts || 0) - (x.ts || 0))[0] || null;
   const insolite = funny ? { title: funny.title, url: funny.url, source: funny.source, ts: funny.ts } : null;
+  console.log("Détail des flux :\n" + log.sort().join("\n"));
   return { generatedAt: now, video, insolite, items: rank(all.filter(a => !odd(a))).slice(0, 150), sources: status };
 }
 

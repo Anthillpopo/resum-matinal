@@ -57,7 +57,7 @@ jobs:
       - name: Collecter et trier les actualités
         run: node scripts/collect.mjs site/news.json
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
       - id: deploiement
