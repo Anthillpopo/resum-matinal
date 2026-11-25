@@ -20,11 +20,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publier:
+  construire:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploiement.outputs.page_url }}
+    outputs:
+      nombre: ${{ steps.collecte.outputs.nombre }}
+      titre: ${{ steps.collecte.outputs.titre }}
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -55,16 +55,42 @@ jobs:
         run: node scripts/keys.mjs
 
       - name: Collecter et trier les actualités
-        run: node scripts/collect.mjs site/news.json
+        id: collecte
+        run: |
+          node scripts/collect.mjs site/news.json
+          node -e "const d=require('./site/news.json');const fs=require('fs');fs.appendFileSync(process.env.GITHUB_OUTPUT,'nombre='+d.items.length+'\n'+'titre='+d.items[0].title.replace(/[\r\n]+/g,' ')+'\n')"
 
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
+
+  deployer:
+    needs: construire
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    outputs:
+      adresse: ${{ steps.deploiement.outputs.page_url }}
+    steps:
       - id: deploiement
         uses: actions/deploy-pages@v4
 
+  notifier:
+    needs: [construire, deployer]
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SITE_URL: ${{ needs.deployer.outputs.adresse }}
+      NEWS_COUNT: ${{ needs.construire.outputs.nombre }}
+      NEWS_TITLE: ${{ needs.construire.outputs.titre }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
       - name: Envoyer la notification du matin
-        if: github.event_name == 'schedule'
-        env:
-          SITE_URL: ${{ steps.deploiement.outputs.page_url }}
         run: node scripts/notify.mjs

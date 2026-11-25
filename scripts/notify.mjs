@@ -1,5 +1,4 @@
 // Envoie la notification du matin aux abonnés dont l'heure choisie est passée et qui n'ont pas encore été prévenus aujourd'hui.
-import { readFile } from "node:fs/promises";
 import webpush from "web-push";
 import { kvReady, kvGet, kvPut, kvDelete, kvList } from "./kv.mjs";
 import { vapid } from "./keys.mjs";
@@ -11,9 +10,9 @@ const p = Object.fromEntries(new Intl.DateTimeFormat("fr-FR", { timeZone: "Europ
 const today = `${p.year}-${p.month}-${p.day}`, minutes = Number(p.hour) * 60 + Number(p.minute);
 if (minutes < 385 || minutes > 630) { console.log("Hors de la plage du matin (heure de Paris) : pas d'envoi."); process.exit(0); }
 
-const news = JSON.parse(await readFile("site/news.json", "utf8"));
-if (!news.items.length) process.exit(0);
-const payload = JSON.stringify({ title: `Le Tri du jour · ${news.items.length} sujets ce matin`, body: "À la une : " + news.items[0].title, url: process.env.SITE_URL || "./" });
+const count = Number(process.env.NEWS_COUNT || 0), first = (process.env.NEWS_TITLE || "").trim();
+if (!count || !first) { console.log("Pas d'actualités à annoncer : pas d'envoi."); process.exit(0); }
+const payload = JSON.stringify({ title: `Le Tri du jour · ${count} sujets ce matin`, body: "À la une : " + first, url: process.env.SITE_URL || "./" });
 
 const v = await vapid();
 webpush.setVapidDetails(process.env.SITE_URL || "https://github.com", v.publicKey, v.privateKey);
