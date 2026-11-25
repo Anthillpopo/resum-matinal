@@ -27,6 +27,7 @@ const SOURCES = [
     ["https://www.brut.media/rss/fr/economie.xml", "economie"],
   ] },
 ];
+const TOP = 5, PER_THEME = 5; // taille de L'essentiel et nombre maximum de sujets par rubrique
 const VIDEO = { name: "HugoDécrypte", feed: "https://www.youtube.com/feeds/videos.xml?channel_id=UCAcAnMF0OrCtUep3Y4M-ZPw" };
 
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", eacute: "é", egrave: "è", agrave: "à", ccedil: "ç", ecirc: "ê", ocirc: "ô", ugrave: "ù", icirc: "î", rsquo: "’", lsquo: "‘", laquo: "«", raquo: "»", hellip: "…", ndash: "–", mdash: "—", euro: "€" };
@@ -131,7 +132,11 @@ export async function build(now = Date.now()) {
   const funny = all.filter(odd).sort((x, y) => (y.ts || 0) - (x.ts || 0))[0] || null;
   const insolite = funny ? { title: funny.title, url: funny.url, source: funny.source, ts: funny.ts } : null;
   console.log("Détail des flux :\n" + log.sort().join("\n"));
-  return { generatedAt: now, video, insolite, items: rank(all.filter(a => !odd(a))).slice(0, 150), sources: status };
+  // Sélection : les 5 sujets les plus repris, puis au plus 5 sujets par rubrique (les plus repris, puis les plus récents).
+  const ranked = rank(all.filter(a => !odd(a)));
+  const top = ranked.slice(0, TOP), perTheme = {};
+  const rest = ranked.slice(TOP).filter(a => (perTheme[a.theme] = (perTheme[a.theme] || 0) + 1) <= PER_THEME);
+  return { generatedAt: now, video, insolite, items: [...top, ...rest], total: ranked.length, sources: status };
 }
 
 // Lancement : écrit site/news.json. En cas d'échec complet, garde le fichier précédent s'il existe.
