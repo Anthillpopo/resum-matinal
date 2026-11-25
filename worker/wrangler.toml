@@ -1,0 +1,8 @@
+name = "le-tri-du-jour-abonnements"
+main = "index.js"
+compatibility_date = "2025-01-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "SUBS"
+id = "27c03b8dd9404995803fe0d1e2c0ff9f"

@@ -1,0 +1,16 @@
+{
+  "name": "Le Tri du jour",
+  "short_name": "Le Tri",
+  "description": "Les actualités du jour, triées chaque matin.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef5f6",
+  "theme_color": "#cfe9f3",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

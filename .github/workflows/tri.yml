@@ -1,0 +1,70 @@
+name: Le Tri du jour
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Heures UTC. Le matin : toutes les 30 minutes pour couvrir 6 h 30 à 8 h à Paris, été comme hiver.
+    - cron: "0,30 4-7 * * *"
+    # Rafraîchissements dans la journée.
+    - cron: "0 10,14,18 * * *"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: tri-du-jour
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Publier le service d'abonnement sur Cloudflare
+        id: worker
+        if: github.event_name != 'schedule'
+        working-directory: worker
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Cloudflare non configuré : étape ignorée."; exit 0
+          fi
+          npx --yes wrangler@4 deploy --var ALLOWED_ORIGIN:"${{ steps.pages.outputs.origin }}" 2>&1 | tee deploy.log
+          url=$(grep -o 'https://[a-zA-Z0-9.-]*workers\.dev' deploy.log | head -1 || true)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Préparer la configuration des notifications
+        env:
+          PUSH_API_URL: ${{ steps.worker.outputs.url }}
+        run: node scripts/keys.mjs
+
+      - name: Collecter et trier les actualités
+        run: node scripts/collect.mjs site/news.json
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploiement
+        uses: actions/deploy-pages@v4
+
+      - name: Envoyer la notification du matin
+        if: github.event_name == 'schedule'
+        env:
+          SITE_URL: ${{ steps.deploiement.outputs.page_url }}
+        run: node scripts/notify.mjs

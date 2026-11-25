@@ -1,0 +1,11 @@
+{
+  "name": "le-tri-du-jour",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "collecte": "node scripts/collect.mjs site/news.json"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
