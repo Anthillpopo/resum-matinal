@@ -160,7 +160,7 @@ nav.tabs button[aria-current="page"]{background:var(--ink);color:var(--bg)}
 /* ---------- Grand écran : ordinateur ---------- */
 @media (min-width: 980px){
   .app{max-width:1180px;padding:84px 32px 48px;gap:18px}
-  nav.tabs{top:0;bottom:auto;padding:12px 12px 10px}
+  nav.tabs{top:0;bottom:auto;justify-content:flex-start;padding:12px 12px 10px max(32px, calc((100vw - 1180px) / 2 + 32px))}
   nav.tabs div{max-width:380px;box-shadow:0 4px 18px rgba(31,42,68,.12)}
   .toast{bottom:28px}
   .hero{grid-template-columns:1fr 150px;padding:22px 28px;border-radius:28px;margin-top:0!important}
@@ -196,7 +196,7 @@ nav.tabs button[aria-current="page"]{background:var(--ink);color:var(--bg)}
 /* ---------- Grand écran large : page « une de journal » qui occupe la largeur ---------- */
 @media (min-width: 1200px){
   .app{max-width:1640px;padding:24px 40px 48px}
-  nav.tabs{justify-content:flex-end;padding:12px max(40px, calc((100vw - 1640px) / 2 + 40px)) 10px}
+  nav.tabs{justify-content:flex-start;padding:12px 12px 10px max(40px, calc((100vw - 1640px) / 2 + 40px))}
   .app{padding-top:80px}
   nav.tabs div{max-width:340px;box-shadow:none;border:1.5px solid var(--rule)}
   .hero{grid-template-columns:auto 1fr;padding:16px 28px;border-radius:24px}
