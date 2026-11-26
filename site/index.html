@@ -107,6 +107,7 @@ section{display:flex;flex-direction:column;gap:10px}
 .group h3{font-family:var(--display);font-size:17px;font-weight:600;margin:6px 0 0;display:flex;align-items:center;gap:8px}
 .group h3 .ico{width:32px;height:32px}.group h3 .ico svg{width:19px;height:19px}
 .list{display:flex;flex-direction:column;gap:10px}
+.more{align-self:flex-start;background:none;border:1.5px solid var(--rule);border-radius:999px;padding:9px 16px;font-weight:800;font-size:14px;color:var(--ink);min-height:44px}
 .skel{background:var(--surface);border-radius:20px;height:118px;position:relative;overflow:hidden}
 .skel::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(207,233,243,.6) 50%,transparent 70%);animation:sh 1.4s infinite}
 @keyframes sh{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
@@ -277,9 +278,10 @@ function meta(a, wt, extra){
   const k = th(a), t = THEMES[k];
   return `<div class="meta">${extra||""}${wt?`<span class="tag" style="background:${t.color}">${ico(k)}${t.label}</span>`:""}<span>${esc(a.source)}${a.ts?" · "+rel(a.ts):""}</span>${read.has(a.url)?`<span class="lu">✓ Lu</span>`:""}${a.video?`<span class="vid">▶ Vidéo</span>`:""}${a.n>1?`<span class="pill">${a.n} médias en parlent</span>`:""}</div>`;
 }
-const body = (a, wt, extra) => `<div><a class="title" href="${safe(a.url)}" target="_blank" rel="noopener" data-open="${reg(a)}">${esc(a.title)}</a>${a.summary?`<p class="sum">${esc(a.summary)}</p>`:""}${meta(a, wt, extra)}</div>`;
+const body = (a, wt, extra, compact) => `<div><a class="title" href="${safe(a.url)}" target="_blank" rel="noopener" data-open="${reg(a)}">${esc(a.title)}</a>${a.summary && !compact?`<p class="sum">${esc(a.summary)}</p>`:""}${meta(a, wt, extra)}</div>`;
 const cls = a => "card" + (read.has(a.url) ? " read" : "");
-const row = (a, wt, extra) => `<div class="${cls(a)}">${body(a, wt, extra)}${favBtn(a)}</div>`;
+const row = (a, wt, extra, compact) => `<div class="${cls(a)}">${body(a, wt, extra, compact)}${favBtn(a)}</div>`;
+const SHOWN = 2, opened = new Set();
 
 function render(){
   REG = [];
@@ -310,7 +312,10 @@ function render(){
     const top = items.slice(0, 5), rest = items.slice(5);
     $("top").innerHTML = top.map((a, i) => `<li class="${cls(a)}"><span class="rank" style="background:${RANKC[i]}">${i+1}</span>${body(a, true)}${favBtn(a)}</li>`).join("");
     $("restTitle").textContent = rest.length ? "Par rubrique" : "";
-    $("groups").innerHTML = present.filter(k => rest.some(a => th(a) === k)).map(k => `<div class="group"><h3>${ico(k)}${THEMES[k].label}</h3>${rest.filter(a => th(a) === k).map(a => row(a, false)).join("")}</div>`).join("");
+    $("groups").innerHTML = present.filter(k => rest.some(a => th(a) === k)).map(k => {
+      const l = rest.filter(a => th(a) === k), more = l.length - SHOWN, all = opened.has(k);
+      return `<div class="group"><h3>${ico(k)}${THEMES[k].label}</h3>${(all ? l : l.slice(0, SHOWN)).map(a => row(a, false, "", true)).join("")}${more > 0 && !all ? `<button class="more" data-more="${k}">Voir ${more} ${more>1?"autres sujets":"autre sujet"}</button>` : ""}</div>`;
+    }).join("");
   } else {
     const list = items.filter(a => th(a) === filter);
     $("restTitle").textContent = THEMES[filter].label + " · " + list.length + (list.length > 1 ? " sujets" : " sujet");
@@ -415,6 +420,8 @@ document.addEventListener("click", async e => {
   const o = e.target.closest("[data-open]");
   if(o){ const a = REG[+o.dataset.open]; if(!a) return; if(a.n > 1 && a.links && a.links.length > 1){ e.preventDefault(); openSheet(a); } else { markRead(a.url); setTimeout(render, 50); } return; }
   if(e.target.closest("#vidLink, #funLink")) return;
+  const mo = e.target.closest("[data-more]");
+  if(mo){ opened.add(mo.dataset.more); render(); return; }
   const f = e.target.closest("[data-fav]"), c = e.target.closest("[data-chip]"), t = e.target.closest("[data-tab]");
   if(f){ const a = REG[+f.dataset.fav]; if(!a) return; if(favs[a.url]){ delete favs[a.url]; hideToast(); } else { favs[a.url] = { title:a.title, url:a.url, summary:a.summary, source:a.source, ts:a.ts, theme:a.theme, video:a.video, n:1, savedAt:Date.now() }; showToast(a.url); } store.set("tri-favs-v1", favs); render(); }
   else if(c){ filter = c.dataset.chip; render(); window.scrollTo(0, 0); const p = document.querySelector('.chip[aria-pressed="true"]'); if(p) $("chips").scrollLeft = Math.max(0, p.offsetLeft - 16); }
