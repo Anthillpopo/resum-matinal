@@ -146,6 +146,9 @@ nav.tabs button[aria-current="page"]{background:var(--ink);color:var(--bg)}
 .sheet li a{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border-radius:16px;padding:14px 16px;min-height:56px;text-decoration:none;color:var(--ink);font-weight:800}
 .sheet li a span{font-weight:600;color:var(--muted);font-size:13.5px;display:block}
 .ext{width:20px;height:20px;flex:none;color:var(--muted)}
+.shead{display:none}
+.ssum{display:none}
+.card.active{box-shadow:0 0 0 2.5px var(--ink)}
 .sheet .close{align-self:center;background:var(--surface);border:1.5px solid var(--rule);border-radius:999px;padding:10px 22px;font-weight:800;min-height:44px}
 .secRest{margin-top:18px}
 .card .title{cursor:pointer}
@@ -187,11 +190,21 @@ nav.tabs button[aria-current="page"]{background:var(--ink);color:var(--bg)}
   .video:hover{box-shadow:0 4px 16px rgba(31,42,68,.10)}
   .fav:hover{background:var(--bg)}
   .more:hover{background:var(--surface)}
-  .sheet{align-items:center;padding:24px}
-  .sheet .panel{max-width:520px;border-radius:26px;padding:22px 22px 20px;animation:pop .18s ease-out}
-  .sheet .grab{display:none}
-  .sheet li a:hover{box-shadow:0 4px 16px rgba(31,42,68,.10)}
-  @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+  .sheet{inset:0 0 0 auto;width:min(460px, 40vw);background:none;align-items:stretch;justify-content:flex-end;z-index:6}
+  .sheet .panel{max-width:none;max-height:none;height:100%;border-radius:0;padding:22px 24px 24px;background:var(--surface);border-left:1.5px solid var(--rule);box-shadow:-12px 0 40px rgba(31,42,68,.10);animation:slide .2s ease-out;touch-action:auto;gap:14px}
+  .sheet .grab,.sheet .close{display:none}
+  .shead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .shead .tag{font-size:13px;font-weight:700}
+  .x{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--ink);background:var(--bg)}
+  .x svg{width:20px;height:20px}
+  .x:hover{background:var(--rule)}
+  .sheet h2{font-size:22px}
+  .ssum{display:block;font-weight:600!important;font-size:15px!important;line-height:1.5;color:var(--muted)}
+  .sheet li a{background:var(--bg)}
+  .sheet li a:hover{background:var(--surface);box-shadow:0 0 0 1.5px var(--rule), 0 4px 16px rgba(31,42,68,.08)}
+  body.sheet-open .app{padding-right:calc(min(460px, 40vw) + 24px)}
+  body.sheet-open nav.tabs{right:min(460px, 40vw)}
+  @keyframes slide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
 }
 /* ---------- Grand écran large : page « une de journal » qui occupe la largeur ---------- */
 @media (min-width: 1200px){
@@ -307,7 +320,12 @@ nav.tabs button[aria-current="page"]{background:var(--ink);color:var(--bg)}
 <div class="sheet" id="sheet" hidden>
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
     <span class="grab" aria-hidden="true"></span>
+    <div class="shead">
+      <span id="sheetTag"></span>
+      <button class="x" id="sheetX" aria-label="Fermer le panneau"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
     <h2 id="sheetTitle"></h2>
+    <p class="ssum" id="sheetSum"></p>
     <p id="sheetInfo"></p>
     <ul id="sheetList"></ul>
     <button class="close" id="sheetClose">Fermer</button>
@@ -366,7 +384,7 @@ function meta(a, wt, extra){
   return `<div class="meta">${extra||""}${wt?`<span class="tag" style="background:${t.color}">${ico(k)}${t.label}</span>`:""}<span>${esc(a.source)}${a.ts?" · "+rel(a.ts):""}</span>${read.has(a.url)?`<span class="lu">✓ Lu</span>`:""}${a.video?`<span class="vid">▶ Vidéo</span>`:""}${a.n>1?`<span class="pill">${a.n} médias en parlent</span>`:""}</div>`;
 }
 const body = (a, wt, extra, compact) => `<div><a class="title" href="${safe(a.url)}" target="_blank" rel="noopener" data-open="${reg(a)}">${esc(a.title)}</a>${a.summary && !compact?`<p class="sum">${esc(a.summary)}</p>`:""}${meta(a, wt, extra)}</div>`;
-const cls = a => "card" + (read.has(a.url) ? " read" : "");
+const cls = a => "card" + (read.has(a.url) ? " read" : "") + (activeUrl === a.url ? " active" : "");
 const row = (a, wt, extra, compact) => `<div class="${cls(a)}">${body(a, wt, extra, compact)}${favBtn(a)}</div>`;
 const SHOWN = 2, opened = new Set();
 const EXT = '<svg class="ext" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>';
@@ -470,18 +488,29 @@ const leanTag = m => m.lean ? `<span class="lean">Orientation estimée : ${esc(m
 const whoLine = name => { const m = metaOf(name); const parts = [m.owner, m.lean ? "orientation estimée " + m.lean : ""].filter(Boolean); return parts.length ? `<span class="who">${esc(parts.join(" · "))}</span>` : ""; };
 
 // ---------- Panneau « Où voulez-vous lire ? » ----------
+// Téléphone : volet qui monte du bas. Ordinateur : panneau latéral à droite, la page reste utilisable.
+let activeUrl = null;
+const desk = () => matchMedia("(min-width: 980px)").matches;
 let lastFocus = null, lastFav = null, toastT = null;
 function showToast(url){ lastFav = url; $("toastMsg").textContent = "Ajouté aux favoris"; $("toast").hidden = false; clearTimeout(toastT); toastT = setTimeout(hideToast, 4000); }
 function hideToast(){ $("toast").hidden = true; lastFav = null; clearTimeout(toastT); }
 function markRead(url){ read.add(url); store.set("tri-read-v1", [...read].slice(-400)); }
 function openSheet(a){
   lastFocus = document.activeElement;
+  activeUrl = a.url;
+  const k = th(a);
+  $("sheetTag").innerHTML = `<span class="tag" style="background:${THEMES[k].color}">${ico(k)}${THEMES[k].label}</span>`;
+  $("sheetSum").textContent = a.summary || "";
   $("sheetTitle").textContent = a.title;
   $("sheetInfo").textContent = a.n + " médias en parlent. Où voulez-vous lire ?";
   $("sheetList").innerHTML = a.links.map(l => `<li><a href="${safe(l.url)}" target="_blank" rel="noopener" data-read="${esc(a.url)}" aria-label="${esc(l.source)} : ${esc(l.title)} (ouvre le site du média)"><div>${esc(l.source)}<span>${esc(l.title)}</span>${whoLine(l.source)}</div>${EXT}</a></li>`).join("");
-  $("sheet").hidden = false; $("sheetList").scrollTop = 0; $("sheetClose").focus({preventScroll:true});
+  document.querySelector(".sheet .panel").setAttribute("aria-modal", desk() ? "false" : "true");
+  const wasOpen = !$("sheet").hidden;
+  $("sheet").hidden = false; document.body.classList.add("sheet-open"); $("sheetList").scrollTop = 0;
+  if(!wasOpen) (desk() ? $("sheetX") : $("sheetClose")).focus({preventScroll:true});
+  render();
 }
-function closeSheet(){ $("sheet").hidden = true; const p = document.querySelector(".sheet .panel"); p.classList.remove("snap"); p.style.transform = ""; if(lastFocus) lastFocus.focus({preventScroll:true}); }
+function closeSheet(){ $("sheet").hidden = true; document.body.classList.remove("sheet-open"); activeUrl = null; setTimeout(render, 0); const p = document.querySelector(".sheet .panel"); p.classList.remove("snap"); p.style.transform = ""; if(lastFocus) lastFocus.focus({preventScroll:true}); }
 (function(){
   const panel = document.querySelector(".sheet .panel"), list = $("sheetList");
   let y0 = 0, dy = 0, drag = false, on = false;
@@ -504,12 +533,12 @@ function closeSheet(){ $("sheet").hidden = true; const p = document.querySelecto
 document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("sheet").hidden) closeSheet(); });
 
 document.addEventListener("click", async e => {
-  if(e.target.id === "sheet" || e.target.closest("#sheetClose")){ closeSheet(); return; }
+  if(e.target.id === "sheet" || e.target.closest("#sheetClose, #sheetX")){ closeSheet(); return; }
   if(e.target.closest("#retry")){ load(); return; }
   const nt = e.target.closest("[data-notif]");
   if(nt){ const v = nt.dataset.notif; if(v === "ask"){ picking = true; notifMsg = ""; } else if(v === "cancel") picking = false; else if(v === "off") await disableNotif(); else await enableNotif(v); render(); return; }
   const r = e.target.closest("[data-read]");
-  if(r){ markRead(r.dataset.read); closeSheet(); render(); return; }
+  if(r){ markRead(r.dataset.read); if(desk()) render(); else { closeSheet(); render(); } return; }
   if(e.target.closest("#toastUndo")){ if(lastFav){ delete favs[lastFav]; store.set("tri-favs-v1", favs); } hideToast(); render(); return; }
   const o = e.target.closest("[data-open]");
   if(o){ const a = REG[+o.dataset.open]; if(!a) return; if(a.n > 1 && a.links && a.links.length > 1){ e.preventDefault(); openSheet(a); } else { markRead(a.url); setTimeout(render, 50); } return; }
