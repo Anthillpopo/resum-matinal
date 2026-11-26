@@ -504,7 +504,7 @@ async function load(){
   render();
 }
 (async () => {
-  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(()=>{});
   try { const r = await fetch("config.json", { cache: "no-store" }); if(r.ok) CFG = await r.json(); } catch(e){}
   load();
 })();

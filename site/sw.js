@@ -1,5 +1,5 @@
 // Le Tri du jour : fonctionnement hors connexion et notification du matin.
-const CACHE = "tri-v1";
+const CACHE = "tri-v2";
 self.addEventListener("install", e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(["./", "index.html", "manifest.webmanifest", "icon-192.png"]).catch(() => {}))); });
 self.addEventListener("activate", e => e.waitUntil(Promise.all([self.clients.claim(), caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))])));
 self.addEventListener("fetch", e => {
@@ -8,7 +8,8 @@ self.addEventListener("fetch", e => {
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     try {
-      const r = await fetch(e.request);
+      // Toujours redemander la dernière version au serveur (sans passer par le cache du navigateur).
+      const r = await fetch(e.request, { cache: "no-cache" });
       if (r.ok) cache.put(e.request, r.clone());
       return r;
     } catch (err) {
