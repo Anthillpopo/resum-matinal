@@ -10,22 +10,17 @@ const SOURCES = [
   { name: "France Culture", any: true, feeds: ["https://www.radiofrance.fr/franceculture/rss", "https://www.radiofrance.fr/franceculture/rss.xml"] },
   { name: "Public Sénat", any: true, feeds: ["https://www.publicsenat.fr/rss.xml", "https://www.publicsenat.fr/rss", "https://www.publicsenat.fr/feed"], theme: "politique" },
   { name: "LCP", feeds: ["https://lcp.fr/rss.xml"], theme: "politique" },
-  { name: "AFP Factuel", any: true, feeds: ["https://factuel.afp.com/rss.xml", "https://factuel.afp.com/rss", "https://factuel.afp.com/fr/rss.xml"] },
+  // Le flux d'AFP Factuel n'est plus alimenté : on passe par la recherche Google Actualités limitée à son site.
+  { name: "AFP Factuel", feeds: ["https://news.google.com/rss/search?q=site:factuel.afp.com+when:2d&hl=fr&gl=FR&ceid=FR:fr"], strip: / - AFP Factuel$/i },
   { name: "The Conversation", any: true, feeds: ["https://theconversation.com/fr/articles.atom", "https://theconversation.com/fr/home-page.atom"] },
-  { name: "Arte", any: true, feeds: ["https://www.arte.tv/fr/rss/", "https://www.arte.tv/rss/fr/"] },
+  // Arte n'a pas de flux d'articles : on suit sa chaîne YouTube.
+  { name: "Arte", video: true, feeds: ["https://www.youtube.com/feeds/videos.xml?channel_id=UCwI-JbGNsojunnHbFAc0M4Q"] },
   { name: "20 Minutes", feeds: ["https://www.20minutes.fr/feeds/rss-une.xml", "https://www.20minutes.fr/feeds/rss-insolite.xml"] },
   { name: "BFMTV", feeds: ["https://www.bfmtv.com/rss/news-24-7/"] },
   { name: "TF1 Info", feeds: ["https://www.tf1info.fr/feeds/rss-une.xml"] },
   { name: "Le HuffPost", feeds: ["https://www.huffingtonpost.fr/feeds/index.xml"] },
-  { name: "Brut", feeds: [
-    ["https://www.brut.media/rss/fr/france.xml", null],
-    ["https://www.brut.media/rss/fr/international.xml", "monde"],
-    ["https://www.brut.media/rss/fr/environnement.xml", "planete"],
-    ["https://www.brut.media/rss/fr/sante.xml", "societe"],
-    ["https://www.brut.media/rss/fr/sport.xml", "sport"],
-    ["https://www.brut.media/rss/fr/sciences-technologies.xml", "sciences"],
-    ["https://www.brut.media/rss/fr/economie.xml", "economie"],
-  ] },
+  // Les flux du site de Brut ne sont plus alimentés depuis juin 2025 : on suit sa chaîne YouTube.
+  { name: "Brut", video: true, feeds: ["https://www.youtube.com/feeds/videos.xml?channel_id=UCSKdvgqdnj72_SLggp7BDTg"] },
 ];
 const TOP = 5, PER_THEME = 5; // taille de L'essentiel et nombre maximum de sujets par rubrique
 const VIDEO = { name: "HugoDécrypte", feed: "https://www.youtube.com/feeds/videos.xml?channel_id=UCAcAnMF0OrCtUep3Y4M-ZPw" };
@@ -110,7 +105,12 @@ export async function build(now = Date.now()) {
         const items = parseFeed(xml);
         const newest = items.reduce((m, a) => Math.max(m, a.ts || 0), 0);
         log.push(`  ${s.name} | ${url} | ${xml.length} octets | ${items.length} éléments | plus récent : ${newest ? new Date(newest).toISOString() : "sans date"}${items.length ? "" : " | début : " + xml.slice(0, 160).replace(/\s+/g, " ")}`);
-        for (const a of items) { const t = fixed || themeOf(a); out.push({ ...a, source: s.name, theme: t === "societe" && s.theme ? s.theme : t, video: (s.name === "Brut" || s.name === "Arte") && /\/videos?\//.test(a.url) }); }
+        for (const a of items) {
+          if (s.strip) a.title = a.title.replace(s.strip, "").trim();
+          if (s.video) a.summary = a.summary.split(/https?:\/\//)[0].replace(/[\s▶👉➞:-]+$/u, "").trim();
+          const t = fixed || themeOf(a);
+          out.push({ ...a, source: s.name, theme: t === "societe" && s.theme ? s.theme : t, video: !!s.video });
+        }
         if (items.length) ok = true;
         return items.length > 0;
       } catch (e) { log.push(`  ${s.name} | ${url} | échec : ${e.message}`); return false; }
