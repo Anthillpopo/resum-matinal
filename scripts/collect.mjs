@@ -22,6 +22,28 @@ const SOURCES = [
   // Les flux du site de Brut ne sont plus alimentés depuis juin 2025 : on suit sa chaîne YouTube.
   { name: "Brut", video: true, feeds: ["https://www.youtube.com/feeds/videos.xml?channel_id=UCSKdvgqdnj72_SLggp7BDTg"] },
 ];
+// Propriétaire de chaque média, et orientation estimée seulement quand une étude publiée la mesure.
+// Orientation : étude FrIdéo (ICNLSP 2026, https://aclanthology.org/2026.icnlsp-1.22.pdf), score gauche-droite
+// sur 30 médias français. Les autres médias de la liste ne figurent pas dans l'étude : pas d'orientation affichée.
+const META = {
+  "franceinfo": { owner: "Service public (France Télévisions, Radio France)", lean: "centre-gauche" },
+  "France Inter": { owner: "Service public (Radio France)" },
+  "France Culture": { owner: "Service public (Radio France)" },
+  "France 24": { owner: "Service public (France Médias Monde)", lean: "centre" },
+  "RFI": { owner: "Service public (France Médias Monde)", lean: "centre" },
+  "Euronews": { owner: "Alpac Capital (fonds d'investissement portugais)" },
+  "Arte": { owner: "Service public franco-allemand" },
+  "Public Sénat": { owner: "Sénat" },
+  "LCP": { owner: "Assemblée nationale" },
+  "AFP Factuel": { owner: "AFP (agence au statut indépendant)" },
+  "The Conversation": { owner: "Association d'universités et d'organismes de recherche" },
+  "Brut": { owner: "CMA CGM (Rodolphe Saadé)" },
+  "HugoDécrypte": { owner: "Indépendant (Hugo Travers)" },
+  "20 Minutes": { owner: "Groupe Ouest-France et Rossel", lean: "centre-gauche" },
+  "BFMTV": { owner: "CMA CGM (Rodolphe Saadé)", lean: "centre" },
+  "TF1 Info": { owner: "Bouygues", lean: "centre-droit" },
+  "Le HuffPost": { owner: "Groupe Le Monde", lean: "gauche", leanNote: "indicatif selon l'étude elle-même" },
+};
 const TOP = 5, PER_THEME = 5; // taille de L'essentiel et nombre maximum de sujets par rubrique
 const VIDEO = { name: "HugoDécrypte", feed: "https://www.youtube.com/feeds/videos.xml?channel_id=UCAcAnMF0OrCtUep3Y4M-ZPw" };
 
@@ -125,6 +147,7 @@ export async function build(now = Date.now()) {
   let video = null, vok = false;
   try { const v = parseFeed(await get(VIDEO.feed)).sort((a, b) => (b.ts || 0) - (a.ts || 0))[0]; vok = true; if (v) video = { title: v.title, url: v.url, ts: v.ts, source: VIDEO.name }; } catch {}
   status.push({ name: VIDEO.name, ok: vok, count: video ? 1 : 0 });
+  for (const x of status) Object.assign(x, META[x.name] || {});
   status.sort((a, b) => a.name.localeCompare(b.name, "fr"));
   // L'insolite du jour : mis de côté, hors classement et hors rubriques.
   const all = lists.flat();

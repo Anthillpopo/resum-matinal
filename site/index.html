@@ -117,10 +117,16 @@ section{display:flex;flex-direction:column;gap:10px}
 .empty{color:var(--muted);padding:12px 0 24px;text-align:center;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:10px}
 .empty svg{width:150px;height:auto}
 .src{background:var(--surface);border-radius:20px;padding:4px 16px;margin:0;list-style:none}
-.src li{padding:11px 0;border-bottom:1.5px solid var(--rule);display:flex;justify-content:space-between;gap:12px;font-weight:700}
+.src li{padding:12px 0;border-bottom:1.5px solid var(--rule);display:flex;flex-direction:column;gap:3px}
 .src li:last-child{border-bottom:0}
-.src span{color:var(--muted);font-size:14px;text-align:right;font-weight:600}
+.src .srow{display:flex;justify-content:space-between;gap:12px;font-weight:800}
+.src .srow span{color:var(--muted);font-size:13.5px;text-align:right;font-weight:600}
+.src small{color:var(--muted);font-size:13.5px;font-weight:600}
+.lean{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12.5px;font-weight:800;background:#e3dcff;color:#3d2f86;margin-top:3px;align-self:flex-start}
+.lean.none{background:var(--bg);color:var(--muted)}
+.sheet .who{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin-top:3px}
 p.note{font-size:14.5px;color:var(--muted);margin:0}
+p.note a{color:var(--ink);font-weight:800}
 
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;justify-content:center;padding:0 12px 12px;pointer-events:none}
 nav.tabs div{display:flex;width:100%;max-width:420px;background:var(--surface);border-radius:999px;padding:6px;box-shadow:0 6px 24px rgba(31,42,68,.16);pointer-events:auto}
@@ -211,6 +217,7 @@ nav.tabs button[aria-current="page"]{background:var(--ink);color:var(--bg)}
     <section>
       <h2>Sources suivies</h2>
       <ul class="src" id="src"></ul>
+      <p class="note">Propriétaires : sources publiques au moment de la mise en ligne. Orientation : estimation de l'étude <a href="https://aclanthology.org/2026.icnlsp-1.22.pdf" target="_blank" rel="noopener">FrIdéo (2026)</a>, qui situe 30 médias français sur un axe gauche-droite. Ses marges d'erreur sont larges, surtout autour du centre ; les médias qu'elle n'a pas étudiés n'ont pas d'orientation affichée.</p>
       <div id="notif2"></div>
       <p class="note">Chaque matin, l'app lit les flux de ces médias, tous en accès libre, range chaque article dans sa rubrique et fait remonter dans L'essentiel les sujets traités par le plus de médias à la fois. Quand plusieurs médias couvrent le même sujet, vous choisissez chez lequel le lire.</p>
     </section>
@@ -332,7 +339,7 @@ function render(){
   const f = Object.values(favs).sort((a, b) => (b.savedAt||0) - (a.savedAt||0));
   $("favs").innerHTML = f.length ? f.map(a => row(a, true, `<span>Ajouté ${new Date(a.savedAt).toLocaleDateString("fr-FR",{day:"numeric",month:"long"})}</span>`)).join("") : `<div class="empty">${EMPTY}<span>Aucun favori pour l'instant.<br>Touchez l'étoile d'un article pour le garder ici.</span></div>`;
   const src = DATA ? DATA.sources : [];
-  $("src").innerHTML = src.map(s => `<li>${esc(s.name)}<span class="${s.ok?"":"ko"}">${s.ok ? s.count + (s.count>1?" contenus":" contenu") + " aujourd'hui" : "ne répond pas"}</span></li>`).join("") || `<li>Chargement…</li>`;
+  $("src").innerHTML = src.map(s => `<li><div class="srow">${esc(s.name)}<span class="${s.ok?"":"ko"}">${s.ok ? s.count + (s.count>1?" contenus":" contenu") + " aujourd'hui" : "ne répond pas"}</span></div>${s.owner?`<small>Propriétaire : ${esc(s.owner)}</small>`:""}${leanTag(s)}</li>`).join("") || `<li>Chargement…</li>`;
 
   for(const t of ["today","favs","src"]) $("view-"+t).hidden = t !== tab;
   document.querySelectorAll("nav.tabs button").forEach(b => b.dataset.tab === tab ? b.setAttribute("aria-current","page") : b.removeAttribute("aria-current"));
@@ -376,6 +383,11 @@ async function disableNotif(){
   notif = null; picking = false; store.set("tri-notif-v1", null);
 }
 
+// ---------- Propriétaire et orientation des médias ----------
+const metaOf = name => ((DATA && DATA.sources) || []).find(x => x.name === name) || {};
+const leanTag = m => m.lean ? `<span class="lean">Orientation estimée : ${esc(m.lean)}${m.leanNote ? " (" + esc(m.leanNote) + ")" : ""}</span>` : `<span class="lean none">Orientation : non étudiée</span>`;
+const whoLine = name => { const m = metaOf(name); const parts = [m.owner, m.lean ? "orientation estimée " + m.lean : ""].filter(Boolean); return parts.length ? `<span class="who">${esc(parts.join(" · "))}</span>` : ""; };
+
 // ---------- Panneau « Où voulez-vous lire ? » ----------
 let lastFocus = null, lastFav = null, toastT = null;
 function showToast(url){ lastFav = url; $("toastMsg").textContent = "Ajouté aux favoris"; $("toast").hidden = false; clearTimeout(toastT); toastT = setTimeout(hideToast, 4000); }
@@ -385,7 +397,7 @@ function openSheet(a){
   lastFocus = document.activeElement;
   $("sheetTitle").textContent = a.title;
   $("sheetInfo").textContent = a.n + " médias en parlent. Où voulez-vous lire ?";
-  $("sheetList").innerHTML = a.links.map(l => `<li><a href="${safe(l.url)}" target="_blank" rel="noopener" data-read="${esc(a.url)}" aria-label="${esc(l.source)} : ${esc(l.title)} (ouvre le site du média)"><div>${esc(l.source)}<span>${esc(l.title)}</span></div>${EXT}</a></li>`).join("");
+  $("sheetList").innerHTML = a.links.map(l => `<li><a href="${safe(l.url)}" target="_blank" rel="noopener" data-read="${esc(a.url)}" aria-label="${esc(l.source)} : ${esc(l.title)} (ouvre le site du média)"><div>${esc(l.source)}<span>${esc(l.title)}</span>${whoLine(l.source)}</div>${EXT}</a></li>`).join("");
   $("sheet").hidden = false; $("sheetList").scrollTop = 0; $("sheetClose").focus({preventScroll:true});
 }
 function closeSheet(){ $("sheet").hidden = true; const p = document.querySelector(".sheet .panel"); p.classList.remove("snap"); p.style.transform = ""; if(lastFocus) lastFocus.focus({preventScroll:true}); }
